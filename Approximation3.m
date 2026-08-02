@@ -1,7 +1,7 @@
 clc; clear; close all;
 
 % Global
-S = (-2:0.2:2)';
+S = (-2:0.05:2)';
 [X,Y] = meshgrid(S);
 strategies = [X(:),Y(:)];           % Each row is a strategy (s1,s2)
 
@@ -13,7 +13,7 @@ distributions = {};
 for k = 1:p
     m0 = startingPoints{k};
 
-    sigma0 = 0.25;
+    sigma0 = 0.1;
     
     dist2 = (strategies(:,1) - m0(1)).^2 ...
           + (strategies(:,2) - m0(2)).^2;
@@ -38,7 +38,7 @@ q = @(x,y) 2*x.^2 + x.*y + y.^2;
 objValues = C3(strategies(:,1),strategies(:,2));
 qValues = q(strategies(:,1),strategies(:,2));
 
-tspan = [0,180];
+tspan = [0,1000];
 solutions = {};
 
 for k = 1:p
@@ -47,13 +47,14 @@ for k = 1:p
     F = @(x) x'*objValues - objValues;  % Vector payoff
     f = @(t,x) x.*(F(x) - x'*F(x));     % Replicator dynamics
     
-    [tf,xf] = ode45(f, tspan, x0);      % Simulate dynamics
+    options = odeset("RelTol",1e-10);
+    [tf,xf] = ode45(f, tspan, x0, options);      % Simulate dynamics
     xf = xf';
     
     Fq = @(x) x'*qValues - qValues;     % Vector payoff
     fq = @(t,x) x.*(Fq(x) - x'*Fq(x));  % Replicator dynamics
     
-    [tq,xq] = ode45(fq, tspan, x0);     % Simulate dynamics
+    [tq,xq] = ode45(fq, tspan, x0, options);     % Simulate dynamics
     xq = xq';
 
     solutions{end+1} = {xf,xq,tf,tq};

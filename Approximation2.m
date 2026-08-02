@@ -1,19 +1,19 @@
 clc; clear; close all;
 
 % Global
-S = (-4:0.2:4)';
+S = (-4:0.1:4)';
 [X,Y] = meshgrid(S);
 strategies = [X(:),Y(:)];           % Each row is a strategy (s1,s2)
 
 % Inital distributions 
-startingPoints = {[-2; 2],[2; 2.5]};
+startingPoints = {[-2; 2],[2.9; 2.9]};
 p = numel(startingPoints);
 distributions = {};
 
 for k = 1:p
     m0 = startingPoints{k};
 
-    sigma0 = 1;
+    sigma0 = 0.2;
     
     dist2 = (strategies(:,1) - m0(1)).^2 ...
           + (strategies(:,2) - m0(2)).^2;
@@ -25,7 +25,7 @@ for k = 1:p
 end
 
 % Objective minimization (2D Styblinski-Tang) 
-ST = @(x,y) (1/2)*(x.^4 - 16*x.^2 + 5*x + y.^4 - 16*y.^2 + 5*y);
+ST = @(x,y) (1/2)*(x.^4 - 16*x.^2 + 5*x + y.^4 - 16*y.^2 + 5*y) + 80;
 
 % Approximation minimization
 sStar = [-2.903534;-2.903534];      % 2D global minimizer
@@ -37,7 +37,7 @@ q = @(x,y) -78.3323 + 9.60412*10^(-7)*(2.90353 + x) + 17.2915*(2.90353 + x).^2 +
 objValues = ST(strategies(:,1),strategies(:,2));
 qValues = q(strategies(:,1),strategies(:,2));
 
-tspan = [0,10];
+tspan = [0,100];
 solutions = {};
 
 for k = 1:p

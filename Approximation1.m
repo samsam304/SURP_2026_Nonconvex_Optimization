@@ -42,6 +42,7 @@ xlabel('Time t');
 ylabel('Strategy s');
 zlabel('Distribution density');
 title('Replicator dynamics for objective');
+zlim([0,9]);
 grid on;
 
 subplot(1,2,2)
@@ -50,6 +51,7 @@ xlabel('Time t');
 ylabel('Strategy s');
 zlabel('Distribution density');
 title('Replicator dynamics for approximation');
+zlim([0,9]);
 grid on;
 
 % Plot: Mean Trajectories
