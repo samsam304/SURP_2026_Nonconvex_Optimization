@@ -68,7 +68,7 @@ on a highly nonconvex and oscillatory landscape.
 
 One-dimensional experiment using a time-varying quadratic approximation.
 At each time, the quadratic is constructed by expanding the original
-objective around the current mean of the population:
+objective around the current mean of the population
 
 $$
 q(m,s)
