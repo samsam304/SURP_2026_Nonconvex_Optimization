@@ -1,6 +1,6 @@
 clc; clear; close all;
 
-% Global
+%% Global
 S = (-4:0.2:4)';
 [X,Y] = meshgrid(S);
 strategies = [X(:),Y(:)];           % Each row is a strategy (s1,s2)
@@ -13,7 +13,7 @@ distributions = {};
 for k = 1:p
     m0 = startingPoints{k};
 
-    sigma0 = 1;
+    sigma0 = 0.5;
     
     dist2 = (strategies(:,1) - m0(1)).^2 ...
           + (strategies(:,2) - m0(2)).^2;
@@ -24,51 +24,56 @@ for k = 1:p
     distributions{end+1} = {x0,sigma0};
 end
 
+% Time
+tspan = [0,30];
+
+%% Minimization
 % Objective minimization (Rastrigin) 
-C3 = @(x,y) 20 + x.^2 - 10*cos(2*pi.*x) + y.^2 - 10*cos(2*pi.*y);
+g = @(s1,s2) 20 + s1.^2 - 10 * cos(2 * pi .* s1) +...
+                s2.^2 - 10 * cos(2 * pi .* s2);
 
 % Approximation minimization
 sStar = [0;0];                      % Global minimizer
 
-q = @(x,y) (1 + 20*pi^2)*x.^2 + (1 + 20*pi^2)*y.^2;
+q = @(s1,s2) (1 + 20 * pi^2) * s1.^2 + (1 + 20 * pi^2) * s2.^2;
 
 % Values on strategy grid for dynamics
-objValues = C3(strategies(:,1),strategies(:,2));
+gValues = g(strategies(:,1),strategies(:,2));
 qValues = q(strategies(:,1),strategies(:,2));
 
-tspan = [0,10];
 solutions = {};
 
 for k = 1:p
     x0 = distributions{k}{1};
     
-    F = @(x) x'*objValues - objValues;  % Vector payoff
-    f = @(t,x) x.*(F(x) - x'*F(x));     % Replicator dynamics
+    F = @(x) x' * gValues - gValues;        % Vector payoff
+    f = @(t,x) x .* (F(x) - x' * F(x));     % Replicator dynamics
     
-    [tf,xf] = ode45(f, tspan, x0);      % Simulate dynamics
-    xf = xf';
+    options = odeset("RelTol",1e-10);
+    [tg,xg] = ode45(f, tspan, x0);          % Simulate dynamics
+    xg = xg';
     
-    Fq = @(x) x'*qValues - qValues;     % Vector payoff
-    fq = @(t,x) x.*(Fq(x) - x'*Fq(x));  % Replicator dynamics
+    Fq = @(x) x' * qValues - qValues;       % Vector payoff
+    fq = @(t,x) x .* (Fq(x) - x' * Fq(x));  % Replicator dynamics
     
-    [tq,xq] = ode45(fq, tspan, x0);     % Simulate dynamics
+    [tq,xq] = ode45(fq, tspan, x0);         % Simulate dynamics
     xq = xq';
 
-    solutions{end+1} = {xf,xq,tf,tq};
+    solutions{end+1} = {xg,xq,tg,tq};
 end 
 
-% Plotting 
-dS = S(2)-S(1);                         % Grid spacing
-dA = dS^2;                              % Area element
+%% Plotting 
+dS = S(2) - S(1);
+dA = dS^2;
 
-objGrid = reshape(objValues, size(X));  % Turn function into square matrix
+gGrid = reshape(gValues, size(X));
 qGrid = reshape(qValues, size(X));
 
 % % Objective and Approximation
 % figure;
 % 
 % subplot(1,2,1)
-% surf(X,Y,objGrid,'EdgeColor','none');
+% surf(X,Y,gGrid,'EdgeColor','none');
 % xlabel('s_1');
 % ylabel('s_2');
 % zlabel('f(s_1,s_2)');
@@ -89,35 +94,35 @@ qGrid = reshape(qValues, size(X));
 figure;
 
 for k = 1:p
-    xf = solutions{k}{1};
+    xg = solutions{k}{1};
     xq = solutions{k}{2};
 
-    xfplot = xf ./ sum(xf,1);
+    xgplot = xg ./ sum(xg,1);
     xqplot = xq ./ sum(xq,1);
 
-    xfdensity = xfplot / dA;
+    xgdensity = xgplot / dA;
     xqdensity = xqplot / dA;
 
-    M1 = strategies' * xfplot;
-    M2 = strategies' * xqplot;
+    mg = strategies' * xgplot;
+    mq = strategies' * xqplot;
 
     subplot(1,2,k);
 
-    [~,h1] = contour(X,Y,objGrid,30);
+    [~,h1] = contour(X,Y,gGrid,30);
     hold on;
 
-    h2 = plot(M1(1,:),M1(2,:),'LineWidth',1.5);
-    h3 = plot(M2(1,:),M2(2,:),'LineWidth',1.5);
+    h2 = plot(mg(1,:),mg(2,:),'LineWidth',1.5);
+    h3 = plot(mq(1,:),mq(2,:),'LineWidth',1.5);
     h4 = plot(sStar(1),sStar(2),'g.','MarkerSize',25);  % Global min
 
     % Initial distribution plot
-    r = 3*distributions{k}{2};
+    r = 3 * distributions{k}{2};
     cx = startingPoints{k}(1);
     cy = startingPoints{k}(2);
 
-    theta = linspace(0,2*pi,100);
-    x = r*cos(theta) + cx;
-    y = r*sin(theta) + cy;
+    theta = linspace(0,2 * pi,100);
+    x = r * cos(theta) + cx;
+    y = r * sin(theta) + cy;
 
     h5 = plot(x,y,'--','LineWidth',2);
     hold off;
@@ -145,23 +150,23 @@ legend([h1, h2, h3, h4, h5], ...
 figure;
 
 for k = 1:p
-    xf = solutions{k}{1};
+    xg = solutions{k}{1};
     xq = solutions{k}{2};
 
-    tf = solutions{k}{3};
+    tg = solutions{k}{3};
     tq = solutions{k}{4};
 
-    xfplot = xf ./ sum(xf,1);
+    xgplot = xg ./ sum(xg,1);
     xqplot = xq ./ sum(xq,1);
 
-    mf = strategies' * xfplot;
+    mg = strategies' * xgplot;
     mq = strategies' * xqplot;
 
-    nf = vecnorm(mf - sStar,2,1);
+    ng = vecnorm(mg - sStar,2,1);
     nq = vecnorm(mq - sStar,2,1);
 
     subplot(1,2,k);
-    plot(tf,nf,'LineWidth',1.5);
+    plot(tg,ng,'LineWidth',1.5);
     hold on;
     plot(tq,nq,'LineWidth',1.5);
     hold off;
@@ -179,26 +184,26 @@ sgtitle('Mean convergence to global minimizer');
 figure;
 
 for k = 1:p
-    xf = solutions{k}{1};
+    xg = solutions{k}{1};
     xq = solutions{k}{2};
 
-    tf = solutions{k}{3};
+    tg = solutions{k}{3};
     tq = solutions{k}{4};
 
-    xfplot = xf ./ sum(xf,1);
+    xgplot = xg ./ sum(xg,1);
     xqplot = xq ./ sum(xq,1);
 
-    mf = strategies' * xfplot;
+    mg = strategies' * xgplot;
     mq = strategies' * xqplot;
 
-    Cf = zeros(2,2,length(tf));
+    Cg = zeros(2,2,length(tg));
     Cq = zeros(2,2,length(tq));
 
-    for j = 1:length(tf)
-        xj = xfplot(:,j);
-        mj = mf(:,j);
+    for j = 1:length(tg)
+        xj = xgplot(:,j);
+        mj = mg(:,j);
 
-        Cf(:,:,j) = strategies' * (strategies .* xj) - mj*mj';
+        Cg(:,:,j) = strategies' * (strategies .* xj) - mj*mj';
     end
 
     for j = 1:length(tq)
@@ -208,11 +213,11 @@ for k = 1:p
         Cq(:,:,j) = strategies' * (strategies .* xj) - mj*mj';
     end
 
-    maxEvaluesF = zeros(1, length(tf));
+    maxEvaluesG = zeros(1, length(tg));
     maxEvaluesQ = zeros(1, length(tq));
 
-    for j = 1:length(tf)
-        maxEvaluesF(j) = max(eig(Cf(:,:,j)));
+    for j = 1:length(tg)
+        maxEvaluesG(j) = max(eig(Cg(:,:,j)));
     end
 
     for j = 1:length(tq)
@@ -220,7 +225,7 @@ for k = 1:p
     end
 
     subplot(1,2,k);
-    plot(tf,maxEvaluesF,'LineWidth',1.5);
+    plot(tg,maxEvaluesG,'LineWidth',1.5);
     hold on;
     plot(tq,maxEvaluesQ,'LineWidth',1.5);
     hold off;

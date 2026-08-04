@@ -1,74 +1,54 @@
 clc; clear; close all;
 
-% Global
-S = (-2:0.02:2)';
+%% Global
+S = (-2:0.01:2)';
 n = numel(S);
 
-x0 = rand(n,1);
+% % Uniform initial distribution
+% x0 = (1/n) .* ones(n,1); 
+
+% Custom initial distribution
+a = 1;
+m0 = a * ones(n,1);
+
+sigma0 = 2;
+
+dist2 = (S - m0).^2;
+
+x0 = exp(-dist2/(2*sigma0^2));
 x0 = x0/sum(x0);
 
-tspan = [0,20];
+% Time
+tspan = [0,60];
 
-% Objective and derivatives
-obj = @(x) (3/2)*x.^4 - (1/4)*x.^3 - 3*x.^2 + (3/4)*x + 1;
+%% Objective minimization and derivatives
+g = @(s) (3/2) * s.^4 - (1/4) * s.^3 - 3 * s.^2 + (3/4) * s + 1;
+dg = @(s) 6 * s.^3 - (3/4) * s.^2 - 6 * s + 3/4;
+ddg = @(s) 18 * s.^2 - (3/2) * s - 6;
 
-dobj = @(x) 6*x.^3 - (3/4)*x.^2 - 6*x + 3/4;
+F = @(x) x' * g(S) - g(S);              % Vector payoff
 
-ddobj = @(x) 18*x.^2 - (3/2)*x - 6;
+f = @(t,x) x .* (F(x) - x' * F(x));     % Replicator dynamics
 
-%% Original objective dynamics
-
-objectiveValues = obj(S);
-
-F = @(x) x' * objectiveValues - objectiveValues;
-f = @(t,x) x .* (F(x) - x' * F(x));
-
-[tf,xf] = ode45(f,tspan,x0);
+[tf,xf] = ode45(f, tspan, x0);          % Simulate dynamics
 xf = xf';
 
-% Normalize each population state
-xfprob = xf ./ sum(xf,1);
+%% Approximation minimization
+m = @(x) x' * S;
 
-% Mean at each output time
-mf = S' * xfprob;
+q = @(m,s) g(m) + ...
+           dg(m) * (s - m) + ...
+           0.5 * ddg(m) * (s - m).^2;
 
-%% Time-varying quadratic dynamics
+Fq = @(x) x' * q(m(x),S) - q(m(x),S);   % Vector payoff
 
-% Continuous approximation of the original mean trajectory
-mfAtTime = @(t) interp1(tf,mf(:),t,'pchip');
+fq = @(t,x) x .* (Fq(x) - x' * Fq(x));  % Replicator dynamics
 
-fq = @(t,x) movingQuadraticDynamics( ...
-    t,x,S,obj,dobj,ddobj,mfAtTime);
-
-[tq,xq] = ode45(fq,tspan,x0);
+[tq,xq] = ode45(fq, tspan, x0);         % Simulate dynamics
 xq = xq';
 
-function dx = movingQuadraticDynamics( ...
-    t,x,S,obj,dobj,ddobj,mfAtTime)
-
-% Normalize the current approximation population
-p = x/sum(x);
-
-% Original AGRF mean at the current ODE time
-mfCurrent = mfAtTime(t);
-
-% Evaluate the current Taylor approximation at every strategy
-delta = S - mfCurrent;
-
-qS = obj(mfCurrent) ...
-    + dobj(mfCurrent) .* delta ...
-    + 0.5 .* ddobj(mfCurrent) .* delta.^2;
-
-% qS is n-by-1
-averageQ = p' * qS;
-Fq = averageQ - qS;
-
-% Replicator dynamics
-averagePayoff = p' * Fq;
-dx = x .* (Fq - averagePayoff);
-end
-
-%% Plot: Distribution Evolution
+%% Plots
+% Distribution Evolution
 xfplot = xf ./ sum(xf,1);
 xqplot = xq ./ sum(xq,1);
 
@@ -83,7 +63,7 @@ surf(tf,S,xfdensity,'EdgeColor','none');
 xlabel('Time t');
 ylabel('Strategy s');
 zlabel('Distribution density');
-title('Replicator dynamics on objective');
+title('Replicator dynamics for objective');
 grid on;
 
 subplot(1,2,2)
@@ -91,10 +71,10 @@ surf(tq,S,xqdensity,'EdgeColor','none');
 xlabel('Time t');
 ylabel('Strategy s');
 zlabel('Distribution density');
-title('Replicator dynamics on approximation about objective mean');
+title('Replicator dynamics for approximation');
 grid on;
 
-%% Plot: Mean Trajectories
+% Mean Trajectories
 mf = S' * xfplot;           % mean trajectory for f
 mq = S' * xqplot;           % mean trajectory for q
 
@@ -108,6 +88,7 @@ hold off;
 
 xlabel('Time t');
 ylabel('Mean strategy m(t)');
+ylim([-2,2])
 title('Mean trajectories for f and q');
-legend('m(t) for f','m_q(t) for q','Global minimizer s = -1');
+legend('m(t) for g','m_q(t) for q','Global minimizer s = -1');
 grid on;
