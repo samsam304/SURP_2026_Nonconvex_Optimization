@@ -1,7 +1,7 @@
 clc; clear; close all;
 
 %% Global
-S = (-1.875:0.01:2.125)';
+S = (-1.875:0.01:2.125)';   % Shifted to center 
 n = numel(S);
 
 %% Version 2: Stuck at local maxima
@@ -20,7 +20,7 @@ x0 = (1/n) .* ones(n,1);
 % x0 = x0/sum(x0);
 
 % Time
-tspan = [0,10];
+tspan = [0,60];
 
 %  Objective minimization and derivatives
 g = @(s) (3/2) * s.^4 - (1/4) * s.^3 - 3 * s.^2 + (3/4) * s + 1;
@@ -34,7 +34,9 @@ f = @(t,x) x .* (F(x) - x' * F(x));     % Replicator dynamics
 [tg,xg] = ode45(f, tspan, x0);          % Simulate dynamics
 xg = xg';
 
-%% Approximation minimization centered at global minima
+%% Global quadratic approximation 
+sStar = -1;         % Global minimizer
+
 qg = @(s) (27/4) * (s + 1).^2 - 1;
 
 Fqg = @(x) x' * qg(S) - qg(S);             % Vector payoff
@@ -44,7 +46,7 @@ fqg = @(t,x) x .* (Fqg(x) - x' * Fqg(x));  % Replicator dynamics
 [tqg,xqg] = ode45(fqg, tspan, x0);         % Simulate dynamics
 xqg = xqg';
 
-%% Approximation minimization with time varying center
+%% Time-varying quadratic approximation
 m = @(x) x' * S;
 
 q = @(m,s) g(m) + ...
@@ -59,6 +61,10 @@ fq = @(t,x) x .* (Fq(x) - x' * Fq(x));  % Replicator dynamics
 xq = xq';
 
 %% Plots
+% Set default interpreter as LaTeX
+set(0,'defaultTextInterpreter','latex');
+
+%% Plot 1
 % Distribution Evolution
 dS = S(2)-S(1);
 xgDensity = xg / dS;
@@ -69,48 +75,121 @@ figure;
 
 subplot(2,2,1)
 surf(tg,S,xgDensity,'EdgeColor','none');
-xlabel('Time t');
-ylabel('Strategy s');
+xlabel('Time $t$');
+ylabel('Strategy $s$');
 zlabel('Distribution density');
 title('Objective');
 grid on;
 
 subplot(2,2,2)
 surf(tqg,S,xqgDensity,'EdgeColor','none');
-xlabel('Time t');
-ylabel('Strategy s');
+xlabel('Time $t$');
+ylabel('Strategy $s$');
 zlabel('Distribution density');
 title('Approximation at Optimizer');
 grid on;
 
 subplot(2,2,[3 4])
 surf(tq,S,xqDensity,'EdgeColor','none');
-xlabel('Time t');
-ylabel('Strategy s');
+xlabel('Time $t$');
+ylabel('Strategy $s$');
 zlabel('Distribution density');
 title('Time Varying Approximation');
-ylim([-1.875, 2.125])
 grid on;
 
-sgtitle('Strategy Distribution Updates via Replicator Dynamics')
+sgtitle('\textbf{Strategy Distribution Updates via Replicator Dynamics}')
 
-% Mean Trajectories
+%% Plot 2
+% Mean convergence rates
 mg = S' * xg;
 mqg = S' * xqg;
 mq = S' * xq;
 
+err_g  = abs(mg(:)  - sStar);
+err_qg = abs(mqg(:) - sStar);
+err_q  = abs(mq(:)  - sStar);
+
+epsilon = max(err_g) * 2e-2;    % 2% settling time
+
+idx_g  = settlingIndex(err_g,  epsilon);
+idx_qg = settlingIndex(err_qg, epsilon);
+idx_q  = settlingIndex(err_q,  epsilon);
+
+% End plot after final convergence
+if isnan(idx_q)
+    T = ceil(max([tg(idx_g),tqg(idx_qg)]));
+else 
+    T = ceil(max([tg(idx_g),tqg(idx_qg),tq(idx_q)]));
+end
+
 figure;
 
-plot(tg,mg,'LineWidth',2,'Color','#1D2DCF');
+% Convergence region
+cRegion = fill([0,0,tspan(2),tspan(2)],[sStar-epsilon,sStar+epsilon,...
+    sStar+epsilon,sStar-epsilon],'g');
 hold on;
-plot(tqg,mqg,'LineWidth',2,'Color','#CF1DB1');
-plot(tq,mq,'LineWidth',2,'Color','#AE1DCF');
-yline(-1,'k--','LineWidth',1.5);
+
+% Mean trajectories
+mgTraj = plot(tg,mg,'k','LineWidth',3);
+mqgTraj = plot(tqg,mqg,'--k','LineWidth',3);
+mqTraj = plot(tq,mq,':k','LineWidth',3);
+
+% Region entry points
+if ~isnan(idx_g)
+    mgPoint = plot(tg(idx_g),mg(idx_g),'o', ...
+        'MarkerSize',10,'LineWidth',2,'Color','k');
+else 
+    mgPoint = plot(NaN,NaN,'o', ...
+        'MarkerSize',10,'LineWidth',2,'Color','k');
+end
+
+if ~isnan(idx_qg)
+    mgqPoint = plot(tqg(idx_qg),mqg(idx_qg),'s', ...
+        'MarkerSize',10,'LineWidth',2,'Color','k');
+else 
+    mgqPoint = plot(NaN,NaN,'s', ...
+        'MarkerSize',10,'LineWidth',2,'Color','k');
+end
+
+if ~isnan(idx_q)
+    mqPoint = plot(tq(idx_q),mq(idx_q),'^', ...
+        'MarkerSize',10,'LineWidth',2,'Color','k');
+else 
+    mqPoint = plot(NaN,NaN,'^', ...
+        'MarkerSize',10,'LineWidth',2,'Color','k');
+end
+
+xlabel('Time $t$');
+xlim([0,T]);
+ylabel('Mean strategy $m(t)$');
+title('$\textbf{Mean trajectories and convergence points}$','FontSize',15);
+grid on;
 hold off;
 
-xlabel('Time t');
-ylabel('Mean strategy m(t)');
-title('Mean trajectories');
-legend('m(t) for g','m_q(t) for q centered at optimizer', ...
-    'm_q(t) for time varying q','Global minimizer s = -1');
-grid on;
+legend([mgTraj,mqgTraj,mqTraj,cRegion,mgPoint,mgqPoint,mqPoint], ...
+    '$m(t)$ for g', ...
+    '$m_{qg}(t)$ centered at optimizer', ...
+    '$m_q(t)$ for time-varying q', ...
+    'Convergence region', ...
+    'Convergence time for $m(t)$', ...
+    'Convergence time for $m_{qg}(t)$ centered at optimizer', ...
+    'Convergence time for $m_q(t)$ time-varying');
+
+%% Functions
+function idx = settlingIndex(err, epsilon)
+err = err(:);
+
+% Last recorded point outside the epsilon-neighborhood
+lastOutside = find(err > epsilon, 1, 'last');
+
+if isempty(lastOutside)
+    % Already inside the neighborhood at the initial time
+    idx = 1;
+elseif lastOutside == numel(err)
+    % Did not settle during the simulation
+    idx = NaN;
+else
+    % First point after the final tolerance violation
+    idx = lastOutside + 1;
+end
+end
