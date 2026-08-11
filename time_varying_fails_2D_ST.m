@@ -20,6 +20,10 @@ x0 = x0/sum(x0);
 % Time
 tspan = [0,60];
 
+% Plotting options
+axis_label_font_size = 16;
+title_font_size = 20;
+
 %% Minimization --- Function: 2D Styblinski-Tang
 % Objective and derivatives
 g = @(s1,s2) (1/2) * (s1.^4 - 16 * s1.^2 + 5 * s1 ...
@@ -84,10 +88,10 @@ mg = strategies' * xg;
 mqg = strategies' * xqg;
 mq = strategies' * xq;
 
-figure;
+figure; box on; hold on; grid on;
+title('\textbf{Mean Trajectory for Styblinski-Tang Objective}','FontSize',title_font_size);
 
 contourf(X,Y,gGrid,30);
-hold on;
 
 % Mean trajectories
 gTraj = plot(mg(1,:),mg(2,:),'k','LineWidth',3);
@@ -106,24 +110,26 @@ globalMin = plot(sStar(1),sStar(2),'g.','MarkerSize',25,'Color','#FF0000');
 % y = r * sin(theta) + cy;
 % 
 % initalCov = plot(x,y,'--','LineWidth',2,'Color','#FF0000');
-hold off;
 
-xlabel('$m_1(t)$');
-ylabel('$m_2(t)$');
-grid on;
+xlabel('$s_1$', 'fontsize', axis_label_font_size);
+ylabel('$s_2$', 'fontsize', axis_label_font_size);
 axis equal;
 xlim([-4, 4]);
 ylim([-4, 4]);
-title('\textbf{Mean trajectories on objective contours}','FontSize',15);
-subtitle(['Inital mean: ', mat2str(m0')]);
+
+xtickformat('$%g$');
+ytickformat('$%g$');
+set(gca,'ticklabelinterpreter','latex','fontsize',axis_label_font_size);
+
 
 % led1 = 'Inital distribution w/ sigma_0=';
 % led2 = num2str(sigma0);
 
 legend([gTraj, qgTraj, qTraj, globalMin], ...
-    {'m(t)','m_{qg}(t)','m_q(t)','Global minimizer'}, ...
-    'Location','southoutside',...
-    'Orientation','horizontal');
+    {'Nonconvex','Optimal Approximation','Adaptive Approximation','Global Minimizer'}, ...
+    'Orientation','vertical',...
+    'interpreter','latex','FontSize',axis_label_font_size,'backgroundalpha',0.9,...
+    'location','southeast');
 
 %% Plot 2
 % Mean convergence rates
@@ -145,12 +151,12 @@ else
     T = ceil(max([tg(idx_g),tqg(idx_qg),tq(idx_q)]));
 end
 
-figure;
+figure; box on; hold on; grid on;
+title('\textbf{Distance to Optimizer for Styblinski-Tang Objective}','FontSize',title_font_size);
 
 % Convergence region
 cRegion = fill([0,0,tspan(2),tspan(2)],[-epsilon,epsilon,...
-    epsilon,-epsilon],'g');
-hold on;
+    epsilon,-epsilon],'g', 'linestyle', 'none');
 
 % Mean trajectories
 mgTraj = plot(tg,ng,'k','LineWidth',3);
@@ -182,22 +188,24 @@ else
         'MarkerSize',10,'LineWidth',2,'Color','k');
 end
 
-xlabel('Time $t$');
+xlabel('Time', 'fontsize', axis_label_font_size);
 xlim([0,T]);
-ylabel('$\|m(t) - m^\star \|_2$');
-title('\textbf{Mean trajectories and convergence points}','FontSize',15);
-subtitle(['Starting point ', mat2str(m0')]);
-grid on;
-hold off;
+ylabel('$\|m(t) - m^\star \|_2$', 'fontsize', axis_label_font_size);
 
-legend([mgTraj,mqgTraj,mqTraj,cRegion,mgPoint,mgqPoint,mqPoint], ...
-    '$m(t)$ for g', ...
-    '$m_{qg}(t)$ centered at optimizer', ...
-    '$m_q(t)$ for time-varying q', ...
-    'Convergence region', ...
-    'Convergence time for $m(t)$', ...
-    'Convergence time for $m_{qg}(t)$ centered at optimizer', ...
-    'Convergence time for $m_q(t)$ time-varying');
+xtickformat('$%g$');
+ytickformat('$%g$');
+ztickformat('$%g$');
+set(gca,'ticklabelinterpreter','latex','fontsize',axis_label_font_size);
+
+legend([mgTraj,mqgTraj,mqTraj,mgPoint,mgqPoint,mqPoint,cRegion], ...
+    'Nonconvex', ...
+    'Optimal Approximation', ...
+    'Adaptive Approximation', ...
+    'Settling Time, Nonconvex', ...
+    'Settling Time, Optimal Approximation', ...
+    'Settling Time, Adaptive Approximation', ...
+    '$2\%$ Settling Time Tube', ...
+    'interpreter','latex','fontsize',axis_label_font_size,'backgroundalpha',0.9);
 
 %% Plot 3
 % Evolution of covariance matrix max eigenvalue
@@ -257,7 +265,8 @@ idx_q  = settlingIndex(maxEvaluesQ,  epsilon);
 % End plot after covariance has settled
 T = ceil(max([tg(idx_g),tqg(idx_qg),tq(idx_q)]));
 
-figure;
+figure; box on; hold on; grid on;
+title('\textbf{Covariance Trajectory for Styblinski-Tang Objective}','FontSize',title_font_size);
 
 plot(tg,maxEvaluesG,'k','LineWidth',3);
 hold on;
@@ -265,14 +274,16 @@ plot(tqg,maxEvaluesQg,'--k','LineWidth',3);
 plot(tq,maxEvaluesQ,':k','LineWidth',3);
 hold off;
 
-xlabel('Time $t$');
+xtickformat('$%g$');
+ytickformat('$%g$');
+ztickformat('$%g$');
+set(gca,'ticklabelinterpreter','latex','fontsize',axis_label_font_size);
+
+xlabel('Time', 'fontsize', axis_label_font_size);
 xlim([0,T]);
-ylabel('Max eigenvalue');
-title('\textbf{Covariance max eigenvalue evolution}','FontSize',15);
-subtitle(['Starting point ', mat2str(m0')]);
-legend('$\lambda_{\max}(C(t))$','$\lambda_{\max}(C_{qg}(t))$',...
-       '$\lambda_{\max}(C_q(t))$');
-grid on;
+ylabel('Maximum Eigenvalue', 'fontsize', axis_label_font_size);
+legend('Nonconvex','Optimal Approximation',...
+       'Adaptive Approximation','interpreter','latex','fontsize',axis_label_font_size,'backgroundalpha',0.9);
 
 %% Functions
 function idx = settlingIndex(err, epsilon)

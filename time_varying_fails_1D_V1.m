@@ -4,6 +4,11 @@ clc; clear; close all;
 S = (-2:0.01:2)';
 n = numel(S);
 
+% Plotting options
+axis_label_font_size = 16;
+title_font_size = 20;
+
+
 %% Version 1: Stuck at local minima
 % % Uniform initial distribution
 % x0 = (1/n) .* ones(n,1); 
@@ -71,33 +76,23 @@ xgDensity = xg / dS;
 xqgDensity = xqg / dS;
 xqDensity = xq / dS;
 
-figure;
+figure; box on; hold on;
+sgtitle('\textbf{Distribution Flows for Quartic Objective}', 'fontsize', title_font_size)
 
 subplot(2,2,1)
 surf(tg,S,xgDensity,'EdgeColor','none');
-xlabel('Time $t$');
-ylabel('Strategy $s$');
-zlabel('Distribution density');
-title('Objective');
-grid on;
+title('Nonconvex', 'fontsize', 18);
+set_latex_axes(axis_label_font_size);
 
 subplot(2,2,2)
 surf(tqg,S,xqgDensity,'EdgeColor','none');
-xlabel('Time $t$');
-ylabel('Strategy $s$');
-zlabel('Distribution density');
-title('Approximation at Optimizer');
-grid on;
+title('Optimal Approximation', 'fontsize', 18);
+set_latex_axes(axis_label_font_size);
 
-subplot(2,2,[3 4])
+subplot(2,2,3.5)
 surf(tq,S,xqDensity,'EdgeColor','none');
-xlabel('Time $t$');
-ylabel('Strategy $s$');
-zlabel('Distribution density');
-title('Time Varying Approximation');
-grid on;
-
-sgtitle('\textbf{Strategy Distribution Updates via Replicator Dynamics}')
+title('Adaptive Approximation', 'fontsize', 18);
+set_latex_axes(axis_label_font_size);
 
 %% Plot 2
 % Mean convergence rates
@@ -122,12 +117,12 @@ else
     T = ceil(max([tg(idx_g),tqg(idx_qg),tq(idx_q)]));
 end
 
-figure;
+figure; box on; hold on; grid on;
+title('$\textbf{Mean Trajectory for Quartic Objective}$','FontSize', title_font_size);
 
 % Convergence region
 cRegion = fill([0,0,tspan(2),tspan(2)],[sStar-epsilon,sStar+epsilon,...
-    sStar+epsilon,sStar-epsilon],'g');
-hold on;
+    sStar+epsilon,sStar-epsilon],'g','linestyle','none');
 
 % Mean trajectories
 mgTraj = plot(tg,mg,'k','LineWidth',3);
@@ -159,21 +154,25 @@ else
         'MarkerSize',10,'LineWidth',2,'Color','k');
 end
 
-xlabel('Time $t$');
+xlabel('Time', 'fontsize', axis_label_font_size);
 xlim([0,T]);
-ylabel('Mean strategy $m(t)$');
-title('$\textbf{Mean trajectories and convergence points}$','FontSize',15);
-grid on;
-hold off;
+ylabel('Mean Strategy', 'fontsize', axis_label_font_size);
 
-legend([mgTraj,mqgTraj,mqTraj,cRegion,mgPoint,mgqPoint,mqPoint], ...
-    '$m(t)$ for g', ...
-    '$m_{qg}(t)$ centered at optimizer', ...
-    '$m_q(t)$ for time-varying q', ...
-    'Convergence region', ...
-    'Convergence time for $m(t)$', ...
-    'Convergence time for $m_{qg}(t)$ centered at optimizer', ...
-    'Convergence time for $m_q(t)$ time-varying');
+xtickformat('$%g$');
+ytickformat('$%g$');
+ztickformat('$%g$');
+set(gca,'ticklabelinterpreter','latex','fontsize',axis_label_font_size);
+
+legend([mgTraj,mqgTraj,mqTraj,mgPoint,mgqPoint,mqPoint,cRegion], ...
+    'Nonconvex', ...
+    'Optimal Approximation', ...
+    'Adaptive Approximation', ...
+    'Settling Time, Nonconvex', ...
+    'Settling Time, Optimal Approximation', ...
+    'Settling Time, Adaptive Approximation', ...
+    '$2\%$ Settling Time Tube', ...
+    'interpreter','latex','fontsize',axis_label_font_size,'backgroundalpha',0.9);
+
 
 %% Functions
 function idx = settlingIndex(err, epsilon)
@@ -192,4 +191,19 @@ else
     % First point after the final tolerance violation
     idx = lastOutside + 1;
 end
+end
+
+function set_latex_axes(axis_label_font_size)
+    % call this function to set a current plot's axes to use latex tick
+    % labels and correct axis labels
+    grid on;
+    
+    xlabel('Time', 'fontsize', axis_label_font_size);
+    ylabel('Strategy', 'fontsize', axis_label_font_size);
+    zlabel('Density', 'fontsize', axis_label_font_size);
+    
+    xtickformat('$%g$');
+    ytickformat('$%g$');
+    ztickformat('$%g$');
+    set(gca,'ticklabelinterpreter','latex','fontsize',axis_label_font_size);
 end
