@@ -275,7 +275,6 @@ legend('$\lambda_{\max}(C(t))$','$\lambda_{\max}(C_{qg}(t))$',...
 grid on;
 
 %% Functions
-% 1
 function idx = settlingIndex(err, epsilon)
 
 % Last recorded point outside the epsilon-neighborhood

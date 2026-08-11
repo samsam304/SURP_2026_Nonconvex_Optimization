@@ -125,7 +125,7 @@ legend([gTraj, qgTraj, qTraj, globalMin], ...
     'Location','southoutside',...
     'Orientation','horizontal');
 
-%% Plot
+%% Plot 2
 % Mean convergence rates
 % Distance of mean from global minimizer
 ng = vecnorm(mg - sStar,2,1);
@@ -275,7 +275,6 @@ legend('$\lambda_{\max}(C(t))$','$\lambda_{\max}(C_{qg}(t))$',...
 grid on;
 
 %% Functions
-% 1
 function idx = settlingIndex(err, epsilon)
 
 % Last recorded point outside the epsilon-neighborhood

@@ -1,7 +1,7 @@
 clc; clear; close all;
 
 %% Global
-S = (-4:0.2:4)';
+S = (-2:0.1:2)';
 [X,Y] = meshgrid(S);
 strategies = [X(:),Y(:)];
 
@@ -66,63 +66,64 @@ fq = @(t,x) x .* (Fq(x) - x' * Fq(x));
 [tq,xq] = ode45(fq, tspan, x0);
 xq = xq';
 
-%% Plotting 
+%% Plots
+% Set default interpreter as LaTeX
+set(0,'defaultTextInterpreter','latex');
+
+%% Plot 1
+% Mean trajectories on contour
 dS = S(2) - S(1);
 dA = dS^2;
 gGrid = reshape(gValues, size(X));
 
-% Mean Trajectories on Contour Plots
-figure;
-
 mg = strategies' * xg;
 mqg = strategies' * xqg;
 mq = strategies' * xq;
 
-[~,h1] = contourf(X,Y,gGrid,30);
+figure;
+
+contourf(X,Y,gGrid,30);
 hold on;
-colormap(gray);
-gTraj = plot(mg(1,:),mg(2,:),'LineWidth',2,'Color','#1D2DCF');
-qgTraj = plot(mqg(1,:),mqg(2,:),'LineWidth',2,'Color','#CF1DB1');
-qTraj = plot(mq(1,:),mq(2,:),'LineWidth',2,'Color','#AE1DCF');
+
+% Mean trajectories
+gTraj = plot(mg(1,:),mg(2,:),'k','LineWidth',3);
+qgTraj = plot(mqg(1,:),mqg(2,:),'--k','LineWidth',3);
+qTraj = plot(mq(1,:),mq(2,:),':k','LineWidth',3);
+
 globalMin = plot(sStar(1),sStar(2),'g.','MarkerSize',25,'Color','#FF0000');
 
-% Initial distribution plot
-r = 3 * sigma0;
-cx = m0(1);
-cy = m0(2);
-
-theta = linspace(0,2*pi,100);
-x = r * cos(theta) + cx;
-y = r * sin(theta) + cy;
-
-initalDist = plot(x,y,'--','LineWidth',2,'Color','#FF0000');
+% % Uncomment for: Initial covariance
+% r = 3 * sigma0;
+% cx = m0(1);
+% cy = m0(2);
+% 
+% theta = linspace(0,2*pi,100);
+% x = r * cos(theta) + cx;
+% y = r * sin(theta) + cy;
+% 
+% initalCov = plot(x,y,'--','LineWidth',2,'Color','#FF0000');
 hold off;
 
-xlabel('m_1(t)');
-ylabel('m_2(t)');
+xlabel('$m_1(t)$');
+ylabel('$m_2(t)$');
 grid on;
 axis equal;
-xlim([-4, 4]);
-ylim([-4, 4]);
-title('Mean trajectories on objective contours');
+xlim([-2, 2]);
+ylim([-2, 2]);
+title('\textbf{Mean trajectories on objective contours}','FontSize',15);
 subtitle(['Inital mean: ', mat2str(m0')]);
 
-led1 = 'Inital distribution w/ sigma_0=';
-led2 = num2str(sigma0);
+% led1 = 'Inital covariance w/ $\sigma_0$=';
+% led2 = num2str(sigma0);
 
-legend([gTraj, qgTraj, qTraj, globalMin, initalDist], ...
-    {'m(t)','m_{qg}(t)', 'm_q(t)', 'Global minimizer', ...
-    strcat(led1,led2)}, ...
-    'Position', [0.35 0.01 0.3 0.05], ...
-    'Orientation', 'horizontal');
+legend([gTraj, qgTraj, qTraj, globalMin], ...
+    {'$m(t)$','$m_{qg}(t)$','$m_q(t)$','Global minimizer'}, ...
+    'Location','southoutside',...
+    'Orientation','horizontal');
 
-% Mean Convergence Rate Comparison
-figure;
-
-mg = strategies' * xg;
-mqg = strategies' * xqg;
-mq = strategies' * xq;
-
+%% Plot 2
+% Mean convergence rates
+% Distance of mean from global minimizer
 ng = vecnorm(mg - sStar,2,1);
 nqg = vecnorm(mqg - sStar,2,1);
 nq = vecnorm(mq - sStar,2,1);
@@ -133,54 +134,69 @@ idx_g  = settlingIndex(ng,  epsilon);
 idx_qg = settlingIndex(nqg, epsilon);
 idx_q  = settlingIndex(nq,  epsilon);
 
-plot(tg,ng,'LineWidth',2,'Color','#1D2DCF');
+% End plot after final convergence
+if isnan(idx_q)
+    T = ceil(max([tg(idx_g),tqg(idx_qg)]));
+else 
+    T = ceil(max([tg(idx_g),tqg(idx_qg),tq(idx_q)]));
+end
+
+figure;
+
+% Convergence region
+cRegion = fill([0,0,tspan(2),tspan(2)],[-epsilon,epsilon,...
+    epsilon,-epsilon],'g');
 hold on;
-plot(tqg,nqg,'LineWidth',2,'Color','#CF1DB1');
-plot(tq,nq,'LineWidth',2,'Color','#AE1DCF');
 
-yline(0,'k--','LineWidth',1.5);
-yline(epsilon,'k:','LineWidth',1.5);
-yline(- epsilon,'k:','LineWidth',1.5);
+% Mean trajectories
+mgTraj = plot(tg,ng,'k','LineWidth',3);
+mqgTraj = plot(tqg,nqg,'--k','LineWidth',3);
+mqTraj = plot(tq,nq,':k','LineWidth',3);
 
+% Region entry points
 if ~isnan(idx_g)
-    plot(tg(idx_g),ng(idx_g),'o', ...
-        'MarkerSize',8,'LineWidth',1.5,'Color','#1DCF2C');
+    mgPoint = plot(tg(idx_g),ng(idx_g),'o', ...
+        'MarkerSize',10,'LineWidth',2,'Color','k');
+else 
+    mgPoint = plot(NaN,NaN,'o', ...
+        'MarkerSize',10,'LineWidth',2,'Color','k');
 end
 
 if ~isnan(idx_qg)
-    plot(tqg(idx_qg),nqg(idx_qg),'s', ...
-        'MarkerSize',8,'LineWidth',1.5,'Color','#1D85CF');
+    mgqPoint = plot(tqg(idx_qg),nqg(idx_qg),'s', ...
+        'MarkerSize',10,'LineWidth',2,'Color','k');
+else 
+    mgqPoint = plot(NaN,NaN,'s', ...
+        'MarkerSize',10,'LineWidth',2,'Color','k');
 end
 
 if ~isnan(idx_q)
-    plot(tq(idx_q),nq(idx_q),'^', ...
-        'MarkerSize',8,'LineWidth',1.5,'Color','#1DCCCF');
+    mqPoint = plot(tq(idx_q),nq(idx_q),'^', ...
+        'MarkerSize',10,'LineWidth',2,'Color','k');
+else 
+    mqPoint = plot(NaN,NaN,'^', ...
+        'MarkerSize',10,'LineWidth',2,'Color','k');
 end
 
-xlabel('Time t');
-ylabel('||m(t) - m^*||_2');
-title('Mean trajectories and convergence points');
+xlabel('Time $t$');
+xlim([0,T]);
+ylabel('$\|m(t) - m^\star \|_2$');
+title('\textbf{Mean trajectories and convergence points}','FontSize',15);
 subtitle(['Starting point ', mat2str(m0')]);
 grid on;
 hold off;
 
-legend('m(t) for g', ...
-    'm_{qg}(t) centered at optimizer', ...
-    'm_q(t) for time-varying q', ...
-    'Global minimizer s = -1', ...
-    '\epsilon-neighborhood', ...
-    '', ...
-    'Convergence time for m(t)', ...
-    'Convergence time for m_q(t) centered at optimizer', ...
-    'Convergence time for m_q(t) for time-varying');
+legend([mgTraj,mqgTraj,mqTraj,cRegion,mgPoint,mgqPoint,mqPoint], ...
+    '$m(t)$ for g', ...
+    '$m_{qg}(t)$ centered at optimizer', ...
+    '$m_q(t)$ for time-varying q', ...
+    'Convergence region', ...
+    'Convergence time for $m(t)$', ...
+    'Convergence time for $m_{qg}(t)$ centered at optimizer', ...
+    'Convergence time for $m_q(t)$ time-varying');
 
-% Evolution of Max EVal from Covariance Matrix
-figure;
-
-mg = strategies' * xg;
-mqg = strategies' * xqg;
-mq = strategies' * xq;
-
+%% Plot 3
+% Evolution of covariance matrix max eigenvalue
 Cg = zeros(2,2,length(tg));
 Cqg = zeros(2,2,length(tqg));
 Cq = zeros(2,2,length(tq));
@@ -222,22 +238,39 @@ for j = 1:length(tq)
     maxEvaluesQ(j) = max(eig(Cq(:,:,j)));
 end
 
-plot(tg,maxEvaluesG,'LineWidth',1.5,'Color','#1D2DCF');
+% Find largest eigenvalue across all trajectories
+maxG = max(maxEvaluesG);
+maxQg = max(maxEvaluesQg);
+maxQ = max(maxEvaluesQ);
+globalMax = max([maxG,maxQg,maxQ]);
+
+epsilon = globalMax * 2e-2;    % 2% settling time
+
+idx_g  = settlingIndex(maxEvaluesG,  epsilon);
+idx_qg = settlingIndex(maxEvaluesQg, epsilon);
+idx_q  = settlingIndex(maxEvaluesQ,  epsilon);
+
+% End plot after covariance has settled
+T = ceil(max([tg(idx_g),tqg(idx_qg),tq(idx_q)]));
+
+figure;
+
+plot(tg,maxEvaluesG,'k','LineWidth',3);
 hold on;
-plot(tqg,maxEvaluesQg,'LineWidth',1.5,'Color','#CF1DB1');
-plot(tq,maxEvaluesQ,'LineWidth',1.5,'Color','#AE1DCF');
+plot(tqg,maxEvaluesQg,'--k','LineWidth',3);
+plot(tq,maxEvaluesQ,':k','LineWidth',3);
 hold off;
 
-xlabel('Time t');
+xlabel('Time $t$');
+xlim([0,T]);
 ylabel('Max eigenvalue');
-title('Covariance max eigenvalue evolution');
+title('\textbf{Covariance max eigenvalue evolution}','FontSize',15);
 subtitle(['Starting point ', mat2str(m0')]);
-legend('lambda_{max}(C(t))','lambda_{max}(C_{qg}(t))',...
-       'lambda_{max}(C_q(t))');
+legend('$\lambda_{\max}(C(t))$','$\lambda_{\max}(C_{qg}(t))$',...
+       '$\lambda_{\max}(C_q(t))$');
 grid on;
 
 %% Functions
-% 1
 function idx = settlingIndex(err, epsilon)
 
 % Last recorded point outside the epsilon-neighborhood
