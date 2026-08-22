@@ -1,33 +1,32 @@
 clc; clear; close all;
 
 %% Global
-S = (-1.875:0.01:2.125)';   % Shifted to center 
+S = (-1.875:0.01:2.125)';   % Shifted to center local max
 n = numel(S);
 
 % Plotting options
-axis_label_font_size = 16;
+axis_label_font_size = 12;
 title_font_size = 20;
-
 
 %% Version 2: Stuck at local maxima
 % Uniform initial distribution
-x0 = (1/n) .* ones(n,1); 
+mu0 = (1/n) .* ones(n,1); 
 
 % % Custom initial distribution
 % a = 1;
 % m0 = a * ones(n,1);
 % 
-% sigma0 = 0.2;
+% sigma0 = 0.3;
 % 
 % dist2 = (S - m0).^2;
 % 
-% x0 = exp(-dist2/(2*sigma0^2));
-% x0 = x0/sum(x0);
+% mu0 = exp(-dist2/(2*sigma0^2));
+% mu0 = mu0/sum(mu0);
 
 % Time
 tspan = [0,60];
 
-%  Objective minimization and derivatives
+%% Objective minimization and derivatives
 g = @(s) (3/2) * s.^4 - (1/4) * s.^3 - 3 * s.^2 + (3/4) * s + 1;
 dg = @(s) 6 * s.^3 - (3/4) * s.^2 - 6 * s + 3/4;
 ddg = @(s) 18 * s.^2 - (3/2) * s - 6;
@@ -36,20 +35,20 @@ F = @(x) x' * g(S) - g(S);              % Vector payoff
 
 f = @(t,x) x .* (F(x) - x' * F(x));     % Replicator dynamics
 
-[tg,xg] = ode45(f, tspan, x0);          % Simulate dynamics
-xg = xg';
+[tg,mu_g] = ode45(f, tspan, mu0);          % Simulate dynamics
+mu_g = mu_g';
 
 %% Global quadratic approximation 
 sStar = -1;         % Global minimizer
 
 qg = @(s) (27/4) * (s + 1).^2 - 1;
 
-Fqg = @(x) x' * qg(S) - qg(S);             % Vector payoff
+Fqg = @(x) x' * qg(S) - qg(S);
 
-fqg = @(t,x) x .* (Fqg(x) - x' * Fqg(x));  % Replicator dynamics
+fqg = @(t,x) x .* (Fqg(x) - x' * Fqg(x));
 
-[tqg,xqg] = ode45(fqg, tspan, x0);         % Simulate dynamics
-xqg = xqg';
+[tqg,mu_qg] = ode45(fqg, tspan, mu0);
+mu_qg = mu_qg';
 
 %% Time-varying quadratic approximation
 m = @(x) x' * S;
@@ -58,12 +57,12 @@ q = @(m,s) g(m) + ...
     dg(m) * (s - m) + ...
     0.5 * ddg(m) * (s - m).^2;
 
-Fq = @(x) x' * q(m(x),S) - q(m(x),S);   % Vector payoff
+Fq = @(x) x' * q(m(x),S) - q(m(x),S);
 
-fq = @(t,x) x .* (Fq(x) - x' * Fq(x));  % Replicator dynamics
+fq = @(t,x) x .* (Fq(x) - x' * Fq(x));
 
-[tq,xq] = ode45(fq, tspan, x0);         % Simulate dynamics
-xq = xq';
+[tq,mu_q] = ode45(fq, tspan, mu0);
+mu_q = mu_q';
 
 %% Plots
 % Set default interpreter as LaTeX
@@ -72,33 +71,77 @@ set(0,'defaultTextInterpreter','latex');
 %% Plot 1
 % Distribution Evolution
 dS = S(2)-S(1);
-xgDensity = xg / dS;
-xqgDensity = xqg / dS;
-xqDensity = xq / dS;
+mu_gDensity = mu_g / dS;
+mu_qgDensity = mu_qg / dS;
+mu_qDensity = mu_q / dS;
 
-figure; box on; hold on;
-sgtitle('\textbf{Distribution Flows for Quartic Objective}', 'fontsize', title_font_size)
+figure;
+box on;
 
-subplot(2,2,1)
-surf(tg,S,xgDensity,'EdgeColor','none');
-title('Nonconvex', 'fontsize', 18);
+tl = tiledlayout(2,3, ...
+    'TileSpacing','compact', ...
+    'Padding','compact');
+
+title(tl, '\textbf{Distribution Flows for Quartic Objective}', ...
+    'FontSize', title_font_size, ...
+    'Interpreter','latex');
+
+skip = 1;   % Speeds up plot vectorization
+
+% Nonconvex objective
+nexttile;
+
+surf(tg(1:skip:end), ...
+    S(1:skip:end), ...
+    mu_gDensity(1:skip:end,1:skip:end), ...
+    'EdgeColor','none');
+
+title('Nonconvex', 'FontSize', 12);
 set_latex_axes(axis_label_font_size);
 
-subplot(2,2,2)
-surf(tqg,S,xqgDensity,'EdgeColor','none');
-title('Optimal Approximation', 'fontsize', 18);
+% Adaptive quadratic approximation
+% Span both columns of the second row
+nexttile([2,2]);
+
+surf(tq(1:skip:end), ...
+    S(1:skip:end), ...
+    mu_qDensity(1:skip:end,1:skip:end), ...
+    'EdgeColor','none');
+
+title('Adaptive Approximation', 'FontSize', 18);
+set_latex_axes(axis_label_font_size);
+ylim([-2,2.15]);
+zlim([-0.125,50])
+
+% Optimal quadratic approximation
+nexttile;
+
+surf(tqg(1:skip:end), ...
+    S(1:skip:end), ...
+    mu_qgDensity(1:skip:end,1:skip:end), ...
+    'EdgeColor','none');
+
+title('Optimal Approximation', 'FontSize', 12);
 set_latex_axes(axis_label_font_size);
 
-subplot(2,2,3.5)
-surf(tq,S,xqDensity,'EdgeColor','none');
-title('Adaptive Approximation', 'fontsize', 18);
-set_latex_axes(axis_label_font_size);
+% % Saving graphics
+% % For report 
+% exportgraphics(gcf, ...
+%     'time_varying_fails_1D_V2_distributions.pdf', ...
+%     'BackgroundColor','none', ...
+%     'ContentType','auto');
+
+% % For poster --- change skip back to 2... or not (~12 min comp time)
+% exportgraphics(gcf, ...
+%     'time_varying_fails_1D_V2_distributions.pdf', ...
+%     'BackgroundColor','none', ...
+%     'ContentType','vector');
 
 %% Plot 2
 % Mean convergence rates
-mg = S' * xg;
-mqg = S' * xqg;
-mq = S' * xq;
+mg = S' * mu_g;
+mqg = S' * mu_qg;
+mq = S' * mu_q;
 
 err_g  = abs(mg(:)  - sStar);
 err_qg = abs(mqg(:) - sStar);
@@ -173,6 +216,12 @@ legend([mgTraj,mqgTraj,mqTraj,mgPoint,mgqPoint,mqPoint,cRegion], ...
     '$2\%$ Settling Time Tube', ...
     'interpreter','latex','fontsize',axis_label_font_size,'backgroundalpha',0.9);
 
+% % Saving graphics
+% tightfig();
+% exportgraphics(gcf,...
+%     'time_varying_fails_1D_V2_meanTraj.pdf',...
+%     'BackgroundColor', 'none',...
+%     'ContentType', 'vector');
 
 %% Functions
 function idx = settlingIndex(err, epsilon)
@@ -206,4 +255,5 @@ function set_latex_axes(axis_label_font_size)
     ytickformat('$%g$');
     ztickformat('$%g$');
     set(gca,'ticklabelinterpreter','latex','fontsize',axis_label_font_size);
+
 end

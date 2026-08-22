@@ -14,15 +14,15 @@ sigma0 = 1;
 dist2 = (strategies(:,1) - m0(1)).^2 ...
       + (strategies(:,2) - m0(2)).^2;
 
-x0 = exp(-dist2/(2*sigma0^2));
-x0 = x0/sum(x0);
+mu0 = exp(-dist2/(2*sigma0^2));
+mu0 = mu0/sum(mu0);
 
 % Time
 tspan = [0,60];
 
 % Plotting options
-axis_label_font_size = 16;
-title_font_size = 20;
+axis_label_font_size = 14;
+title_font_size = 16;
 
 %% Minimization --- Function: 2D Styblinski-Tang
 % Objective and derivatives
@@ -57,22 +57,22 @@ qgValues = qg(strategies(:,1),strategies(:,2));
 Fg = @(x) x' * gValues - gValues;        % Vector payoff
 fg = @(t,x) x .* (Fg(x) - x' * Fg(x));   % Replicator dynamics
 
-[tg,xg] = ode45(fg, tspan, x0);          % Simulate dynamics
-xg = xg';
+[tg,mu_g] = ode45(fg, tspan, mu0);          % Simulate dynamics
+mu_g = mu_g';
 
 % Quadratic dynamics at optimizer
 Fqg = @(x) x' * qgValues - qgValues;
 fqg = @(t,x) x .* (Fqg(x) - x' * Fqg(x));
 
-[tqg,xqg] = ode45(fqg, tspan, x0);
-xqg = xqg';
+[tqg,mu_qg] = ode45(fqg, tspan, mu0);
+mu_qg = mu_qg';
 
 % Quadratic dynamics for time-varying
 Fq = @(x) x' * q(m(x),strategies) - q(m(x),strategies);
 fq = @(t,x) x .* (Fq(x) - x' * Fq(x));
 
-[tq,xq] = ode45(fq, tspan, x0);
-xq = xq';
+[tq,mu_q] = ode45(fq, tspan, mu0);
+mu_q = mu_q';
 
 %% Plots
 % Set default interpreter as LaTeX
@@ -84,12 +84,11 @@ dS = S(2) - S(1);
 dA = dS^2;
 gGrid = reshape(gValues, size(X));
 
-mg = strategies' * xg;
-mqg = strategies' * xqg;
-mq = strategies' * xq;
+mg = strategies' * mu_g;
+mqg = strategies' * mu_qg;
+mq = strategies' * mu_q;
 
 figure; box on; hold on; grid on;
-title('\textbf{Mean Trajectory for Styblinski-Tang Objective}','FontSize',title_font_size);
 
 contourf(X,Y,gGrid,30);
 
@@ -120,6 +119,7 @@ ylim([-4, 4]);
 xtickformat('$%g$');
 ytickformat('$%g$');
 set(gca,'ticklabelinterpreter','latex','fontsize',axis_label_font_size);
+title('\textbf{Mean Trajectory for Styblinski-Tang Objective}','FontSize',title_font_size);
 
 
 % led1 = 'Inital covariance w/ $\sigma_0$=';
@@ -129,6 +129,19 @@ legend([gTraj, qgTraj, qTraj, globalMin], ...
     {'Nonconvex','Optimal Approximation','Adaptive Approximation','Global Minimizer'}, ...
     'Orientation','vertical',...
     'interpreter','latex','FontSize',axis_label_font_size,'backgroundalpha',0.9);
+
+% % Saving graphics
+% % For report 
+% exportgraphics(gcf, ...
+%     'convergence_2D_ST_contour.pdf', ...
+%     'BackgroundColor','none', ...
+%     'ContentType','auto');
+
+% % For poster --- change skip back to 2... or not (~12 min comp time)
+% exportgraphics(gcf, ...
+%     'convergence_2D_ST_contour.pdf', ...
+%     'BackgroundColor','none', ...
+%     'ContentType','vector');
 
 %% Plot 2
 % Mean convergence rates
@@ -206,6 +219,13 @@ legend([mgTraj,mqgTraj,mqTraj,mgPoint,mgqPoint,mqPoint,cRegion], ...
     '$2\%$ Settling Time Tube', ...
     'interpreter','latex','fontsize',axis_label_font_size,'backgroundalpha',0.9);
 
+% % Saving graphics
+% tightfig();
+% exportgraphics(gcf,...
+%     'convergence_2D_ST_mean_traj.pdf',...
+%     'BackgroundColor', 'none',...
+%     'ContentType', 'vector');
+
 %% Plot 3
 % Evolution of covariance matrix max eigenvalue
 Cg = zeros(2,2,length(tg));
@@ -213,21 +233,21 @@ Cqg = zeros(2,2,length(tqg));
 Cq = zeros(2,2,length(tq));
 
 for j = 1:length(tg)
-    xj = xg(:,j);
+    xj = mu_g(:,j);
     mj = mg(:,j);
 
     Cg(:,:,j) = strategies' * (strategies .* xj) - mj*mj';
 end
 
 for j = 1:length(tqg)
-    xj = xqg(:,j);
+    xj = mu_qg(:,j);
     mj = mqg(:,j);
 
     Cqg(:,:,j) = strategies' * (strategies .* xj) - mj*mj';
 end
 
 for j = 1:length(tq)
-    xj = xq(:,j);
+    xj = mu_q(:,j);
     mj = mq(:,j);
 
     Cq(:,:,j) = strategies' * (strategies .* xj) - mj*mj';
@@ -250,10 +270,10 @@ for j = 1:length(tq)
 end
 
 % Find largest eigenvalue across all trajectories
-maxG = max(maxEvaluesG);
-maxQg = max(maxEvaluesQg);
-maxQ = max(maxEvaluesQ);
-globalMax = max([maxG,maxQg,maxQ]);
+mamu_g = max(maxEvaluesG);
+mamu_qg = max(maxEvaluesQg);
+mamu_q = max(maxEvaluesQ);
+globalMax = max([mamu_g,mamu_qg,mamu_q]);
 
 epsilon = globalMax * 2e-2;    % 2% settling time
 
@@ -281,6 +301,13 @@ xlim([0,T]);
 ylabel('Maximum Eigenvalue', 'fontsize', axis_label_font_size);
 legend('Nonconvex','Optimal Approximation',...
        'Adaptive Approximation','interpreter','latex','fontsize',axis_label_font_size,'backgroundalpha',0.9);
+
+% % Saving graphics
+% tightfig();
+% exportgraphics(gcf,...
+%     'convergence_2D_ST_covariance_eval.pdf',...
+%     'BackgroundColor', 'none',...
+%     'ContentType', 'vector');
 
 %% Functions
 function idx = settlingIndex(err, epsilon)
